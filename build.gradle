@@ -1,0 +1,25 @@
+plugins {
+    id 'java'
+}
+
+group = 'org.astar.thunder'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // JUnit Jupiter API and Engine
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.13.2'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.13.2'
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    // Mockito Core
+    testImplementation 'org.mockito:mockito-core:5.12.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.12.0'
+}
+
+test {
+    useJUnitPlatform()
+}
