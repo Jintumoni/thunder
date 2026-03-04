@@ -14,20 +14,24 @@ public class MapRDD<PARENT, SELF> extends RDD<SELF> {
   private final RDD<PARENT> parent;
   private final Function<PARENT, SELF> f;
 
-  private final ArrayList<SELF> out;
   public MapRDD(RDD<PARENT> parent, Function<PARENT, SELF> f) {
     this.parent = parent;
     this.f = f;
-    this.out = new ArrayList<>(getPartitions().size());
   }
   @Override
   public Iterator<SELF> compute(Partition p) throws Exception {
-    this.out.clear();
-    for (Iterator<PARENT> it = this.parent.compute(p); it.hasNext(); ) {
-      PARENT result = it.next();
-      out.add(this.f.apply(result));
-    }
-    return out.iterator();
+    Iterator<PARENT> it = this.parent.compute(p);
+    return new Iterator<SELF>() {
+      @Override
+      public boolean hasNext() {
+        return it.hasNext();
+      }
+
+      @Override
+      public SELF next() {
+        return f.apply(it.next());
+      }
+    };
   }
 
   @Override
@@ -42,11 +46,14 @@ public class MapRDD<PARENT, SELF> extends RDD<SELF> {
 
   @Override
   public ArrayList<SELF> collect() throws Exception {
-    // for now just iterate through all the partitions and call compute()
+    ArrayList<SELF> out = new ArrayList<>();
     for (Partition p : getPartitions()) {
-      compute(p);
+      Iterator<SELF> it = compute(p);
+      while(it.hasNext()) {
+        out.add(it.next());
+      }
     }
-    return this.out;
+    return out;
   }
 
   @Override

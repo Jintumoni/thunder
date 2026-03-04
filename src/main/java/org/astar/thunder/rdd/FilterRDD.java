@@ -13,21 +13,24 @@ public class FilterRDD<T> extends RDD<T> {
   private final RDD<T> parent;
   private final Function<T, T> f;
 
-  private final ArrayList<T> out;
   public FilterRDD(RDD<T> parent, Function<T, T> f) {
     this.parent = parent;
     this.f = f;
-    this.out = new ArrayList<>(getPartitions().size());
   }
   @Override
   public Iterator<T> compute(Partition p) throws Exception {
-    for (Iterator<T> it = this.parent.compute(p); it.hasNext(); ) {
-      T result = this.f.apply(it.next());
-      if (result != null) {
-        out.add(result);
+    Iterator<T> it = this.parent.compute(p);
+    return new Iterator<T>() {
+      @Override
+      public boolean hasNext() {
+        return it.hasNext();
       }
-    }
-    return out.iterator();
+
+      @Override
+      public T next() {
+        return f.apply(it.next());
+      }
+    };
   }
 
   @Override
@@ -42,10 +45,14 @@ public class FilterRDD<T> extends RDD<T> {
 
   @Override
   public ArrayList<T> collect() throws Exception {
+    ArrayList<T> out = new ArrayList<>();
     for (Partition p : getPartitions()) {
-      compute(p);
+      Iterator<T> it = compute(p);
+      while(it.hasNext()) {
+        out.add(it.next());
+      }
     }
-    return this.out;
+    return out;
   }
 
   @Override

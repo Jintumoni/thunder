@@ -5,6 +5,7 @@ import org.astar.thunder.exceptions.PartitionProcessingException;
 import org.astar.thunder.partition.Partition;
 import org.astar.thunder.partition.TextFilePartition;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
@@ -17,24 +18,20 @@ public class TextFileScanRDD extends RDD<String> {
   private final Path path;
   private final long fileSizeBytes;
   private final long ALLOWED_MAX_BYTES_PER_PARTITION = 4 << 10; // 4kb
-
-  private ArrayList<String> out;
   private final byte END_OF_LINE_MARKER = '\n';
 
   public TextFileScanRDD(int minPartitions, String fileLoc) throws IOException {
     this.minPartitions = minPartitions;
     this.path = Path.of(fileLoc);
     this.fileSizeBytes = Files.size(this.path);
-    this.out = new ArrayList<>(this.minPartitions);
   }
 
   @Override
-  public Iterator<String> compute(Partition p) throws PartitionProcessingException {
-    this.out.clear();
-    TextFilePartition filePartition = (TextFilePartition) p;
-    System.out.println("Opening file partition " + filePartition);
+  public Iterator<String> compute(Partition p) throws FileNotFoundException, IOException {
 
-    try(RandomAccessFile file = new RandomAccessFile(filePartition.getFileName(), "r")) {
+    TextFilePartition filePartition = (TextFilePartition) p;
+
+    RandomAccessFile file = new RandomAccessFile(filePartition.getFileName(), "r");
       if (0 != filePartition.getStart()) {
         file.seek(filePartition.getStart() - 1);
       }
@@ -48,20 +45,29 @@ public class TextFileScanRDD extends RDD<String> {
         file.seek(filePartition.getStart());
       }
 
-      while (true) {
-        if (file.getFilePointer() > filePartition.getEnd()) break;
-        String line = file.readLine();
-        if (line == null) break;
-        out.add(line);
+    return new Iterator<>() {
+      @Override
+      public boolean hasNext() {
+        try {
+          if (file.getFilePointer() > filePartition.getEnd()) {
+            file.close();
+            return false;
+          }
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        return true;
       }
-    }
-    catch (Exception e) {
-      throw new PartitionProcessingException(
-        String.format("error processing partition %s", filePartition.getIndex()) + e.getMessage(),
-        e
-      );
-    }
-    return out.iterator();
+
+      @Override
+      public String next() {
+        try {
+          return file.readLine();
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    };
   }
 
   @Override
@@ -85,12 +91,15 @@ public class TextFileScanRDD extends RDD<String> {
   }
 
   @Override
-  public ArrayList<String> collect() throws PartitionProcessingException {
-    // for now just iterate through all the partitions and call compute()
+  public ArrayList<String> collect() throws PartitionProcessingException, IOException {
+    ArrayList<String> out = new ArrayList<>();
     for (Partition p : getPartitions()) {
-      compute(p);
+      Iterator<String> it = compute(p);
+      while(it.hasNext()) {
+        out.add(it.next());
+      }
     }
-    return this.out;
+    return out;
   }
 
   public long getFileSizeBytes() {
