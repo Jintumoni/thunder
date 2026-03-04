@@ -17,10 +17,11 @@ public class FilterRDD<T> extends RDD<T> {
     this.parent = parent;
     this.f = f;
   }
+
   @Override
   public Iterator<T> compute(Partition p) throws Exception {
     Iterator<T> it = this.parent.compute(p);
-    return new Iterator<T>() {
+    return new Iterator<>() {
       @Override
       public boolean hasNext() {
         return it.hasNext();
@@ -48,7 +49,7 @@ public class FilterRDD<T> extends RDD<T> {
     ArrayList<T> out = new ArrayList<>();
     for (Partition p : getPartitions()) {
       Iterator<T> it = compute(p);
-      while(it.hasNext()) {
+      while (it.hasNext()) {
         out.add(it.next());
       }
     }

@@ -18,10 +18,11 @@ public class MapRDD<PARENT, SELF> extends RDD<SELF> {
     this.parent = parent;
     this.f = f;
   }
+
   @Override
   public Iterator<SELF> compute(Partition p) throws Exception {
     Iterator<PARENT> it = this.parent.compute(p);
-    return new Iterator<SELF>() {
+    return new Iterator<>() {
       @Override
       public boolean hasNext() {
         return it.hasNext();
@@ -49,7 +50,7 @@ public class MapRDD<PARENT, SELF> extends RDD<SELF> {
     ArrayList<SELF> out = new ArrayList<>();
     for (Partition p : getPartitions()) {
       Iterator<SELF> it = compute(p);
-      while(it.hasNext()) {
+      while (it.hasNext()) {
         out.add(it.next());
       }
     }

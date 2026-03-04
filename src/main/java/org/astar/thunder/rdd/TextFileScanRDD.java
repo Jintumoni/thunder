@@ -32,18 +32,17 @@ public class TextFileScanRDD extends RDD<String> {
     TextFilePartition filePartition = (TextFilePartition) p;
 
     RandomAccessFile file = new RandomAccessFile(filePartition.getFileName(), "r");
-      if (0 != filePartition.getStart()) {
-        file.seek(filePartition.getStart() - 1);
-      }
+    if (0 != filePartition.getStart()) {
+      file.seek(filePartition.getStart() - 1);
+    }
 
-      if (END_OF_LINE_MARKER != file.readByte() && 0 != filePartition.getStart()) {
-        // this offset starts in the middle of somewhere, SKIP
-        file.readLine();
-      }
-      else {
-        // good start
-        file.seek(filePartition.getStart());
-      }
+    if (END_OF_LINE_MARKER != file.readByte() && 0 != filePartition.getStart()) {
+      // this offset starts in the middle of somewhere, SKIP
+      file.readLine();
+    } else {
+      // good start
+      file.seek(filePartition.getStart());
+    }
 
     return new Iterator<>() {
       @Override
@@ -95,7 +94,7 @@ public class TextFileScanRDD extends RDD<String> {
     ArrayList<String> out = new ArrayList<>();
     for (Partition p : getPartitions()) {
       Iterator<String> it = compute(p);
-      while(it.hasNext()) {
+      while (it.hasNext()) {
         out.add(it.next());
       }
     }
