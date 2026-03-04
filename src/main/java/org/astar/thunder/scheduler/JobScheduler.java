@@ -1,5 +1,6 @@
 package org.astar.thunder.scheduler;
 
+import org.astar.thunder.cluster.ResourceManager;
 import org.astar.thunder.dependency.Dependency;
 import org.astar.thunder.dependency.ShuffleDependency;
 import org.astar.thunder.rdd.RDD;
@@ -9,6 +10,13 @@ import java.util.ArrayList;
 public class JobScheduler {
   private int jobId = 0;
   private int stageId = 0;
+  private final ResourceManager resourceManager;
+  private final TaskScheduler taskScheduler;
+
+  public JobScheduler(ResourceManager resourceManager) {
+    this.resourceManager = resourceManager;
+    this.taskScheduler = new TaskScheduler();
+  }
 
   public int getJobId() {
     return this.jobId;
@@ -26,28 +34,28 @@ public class JobScheduler {
     this.stageId = stageId;
   }
 
-  public int submitJob(RDD<?> rdd) {
+  public void submitJob(RDD<?> rdd) {
     this.jobId++;
     this.stageId = 0;
     // create Stage by breaking the dependency graph at Shuffle boundary
     ArrayList<Stage> stages = createStages(rdd, true); // root is a barrier by convention
-    // pass on the Stages to Task Scheduler
-    return this.jobId;
+    // break down Stage into Task(s)
+    ArrayList<Task> tasks = this.taskScheduler.createTasks(stages);
+    this.taskScheduler.scheduleTasks(tasks, this.resourceManager);
   }
 
   /**
-   * A dependency tree may look like following. Suppose RDD1 and RDD4 are ShuffleDependency, then
-   * this method shall create 3 stages: one at the edge between RDD1-RDD3, second at the edge between
-   * RDD4-RDD5 and last one at the edge between RDD4-RDD6
+   * A dependency tree may look like the following diagram.
    * <pre>
-   *               ______ RDD ______
-   *             /                  \
-   *          RDD1                 RDD2
-   *            |                    |
-   *          RDD3              ___RDD4___
-   *                          /           \
-   *                       RDD5           RDD6
+   *              _______ RDD1 ______
+   *             /                   \
+   *          RDD2                  RDD3
+   *            |                     |
+   *          RDD4               ___RDD5___
+   *                           /           \
+   *                         RDD6         RDD7
    * </pre>
+   *
    * @param rdd input RDD
    * @return a list of Stages broken down at Shuffle boundary
    */
@@ -60,8 +68,7 @@ public class JobScheduler {
         stages.addAll(createStages(dependency.rdd(), true));
         parentStageIds.add(this.stageId);
         this.stageId++;
-      }
-      else {
+      } else {
         stages.addAll(createStages(dependency.rdd(), false));
         for (; ind < stages.size(); ind++) {
           parentStageIds.add(stages.get(ind).getStageId());
