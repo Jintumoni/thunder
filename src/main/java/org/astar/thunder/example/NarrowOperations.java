@@ -1,16 +1,14 @@
 package org.astar.thunder.example;
 
+import org.astar.thunder.cluster.ResourceManager;
 import org.astar.thunder.rdd.RDD;
 import org.astar.thunder.rdd.TextFileScanRDD;
 import org.astar.thunder.scheduler.JobScheduler;
-import org.astar.thunder.scheduler.Stage;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.function.Function;
 
 public class NarrowOperations {
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) throws Exception {
     RDD<String> rdd = new TextFileScanRDD(2, "./data/sample.csv");
 
     Function<String, Person> typeMapper = s -> {
@@ -19,7 +17,7 @@ public class NarrowOperations {
     };
 
     Function<Person, Person> ageFilter = person -> {
-      if (person.getAge() > 25) {
+      if (person.getAge() <= 25) {
         return new Person(person.getId(), person.getName(), person.getAge());
       }
       else {
@@ -31,9 +29,11 @@ public class NarrowOperations {
       .map(typeMapper)
       .filter(ageFilter);
 
+    ResourceManager rm = new ResourceManager();
+    rm.init();
 
-    ArrayList<Stage> stages = new JobScheduler().createStages(mrdd);
-    System.out.println(stages);
+    JobScheduler sch = new JobScheduler(rm);
+    sch.submitJob(mrdd);
   }
 }
 
