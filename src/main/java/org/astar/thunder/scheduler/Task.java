@@ -14,7 +14,7 @@ import java.util.Iterator;
 public class Task {
   public static final int TOMBSTONE_TASK_ID = Integer.MAX_VALUE;
   private final int taskId;
-  private final int stageId;
+  private final Integer stageId;
   private final RDD<?> rdd;
   private final Partition partition;
 

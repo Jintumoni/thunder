@@ -1,10 +1,14 @@
 package org.astar.thunder.example;
 
+import io.plank.PlankReader;
 import org.astar.thunder.cluster.ResourceManager;
+import org.astar.thunder.rdd.PlankFileScanRDD;
 import org.astar.thunder.rdd.RDD;
 import org.astar.thunder.rdd.TextFileScanRDD;
 import org.astar.thunder.scheduler.JobScheduler;
 
+import java.util.ArrayList;
+import java.util.Objects;
 import java.util.function.Function;
 
 public class NarrowOperations {
@@ -29,11 +33,30 @@ public class NarrowOperations {
       .map(typeMapper)
       .filter(ageFilter);
 
+    // plank file format
+
+    PlankReader reader = new PlankReader("/Users/upen/Desktop/Codes/thunder/data/addresses.plank");
+
+    RDD<Object> plankRdd = new PlankFileScanRDD(reader);
+
+    RDD<Person> mappedRdd = plankRdd.map(o -> {
+      ArrayList<Object> row = (ArrayList<Object>) o;
+      return new Person((int)row.get(0), (String)row.get(1), 20);
+    })
+      .filter(p -> {
+        if (!Objects.equals(p.getName(), "Bob")) {
+          return p;
+        }
+        else {
+          return null;
+        }
+      });
+
     ResourceManager rm = new ResourceManager();
     rm.init();
 
     JobScheduler sch = new JobScheduler(rm);
-    sch.submitJob(mrdd);
+    sch.submitJob(mappedRdd);
   }
 }
 
