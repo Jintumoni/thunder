@@ -20,7 +20,7 @@ public abstract class RDD<T> {
     return new MapRDD<>(this, f);
   }
 
-  public RDD<T> filter(Function<T, T> f) {
+  public RDD<T> filter(Function<T, Boolean> f) {
     return new FilterRDD<>(this, f);
   }
 

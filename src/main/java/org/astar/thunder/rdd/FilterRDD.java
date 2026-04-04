@@ -11,9 +11,9 @@ import java.util.function.Function;
 
 public class FilterRDD<T> extends RDD<T> {
   private final RDD<T> parent;
-  private final Function<T, T> f;
+  private final Function<T, Boolean> f;
 
-  public FilterRDD(RDD<T> parent, Function<T, T> f) {
+  public FilterRDD(RDD<T> parent, Function<T, Boolean> f) {
     this.parent = parent;
     this.f = f;
   }
@@ -29,7 +29,8 @@ public class FilterRDD<T> extends RDD<T> {
 
       @Override
       public T next() {
-        return f.apply(it.next());
+        T result = it.next();
+        return f.apply(result) ? result : null;
       }
     };
   }
