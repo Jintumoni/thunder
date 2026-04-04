@@ -1,7 +1,6 @@
 package org.astar.thunder.example;
 
 import io.plank.PlankReader;
-import org.astar.thunder.cluster.ResourceManager;
 import org.astar.thunder.rdd.PlankFileScanRDD;
 import org.astar.thunder.rdd.RDD;
 import org.astar.thunder.rdd.TextFileScanRDD;
@@ -20,14 +19,7 @@ public class NarrowOperations {
       return new Person(Integer.parseInt(splits[0]), splits[1], Integer.parseInt(splits[2]));
     };
 
-    Function<Person, Person> ageFilter = person -> {
-      if (person.getAge() <= 25) {
-        return new Person(person.getId(), person.getName(), person.getAge());
-      }
-      else {
-        return null;
-      }
-    };
+    Function<Person, Boolean> ageFilter = person -> person.getAge() <= 25;
 
     RDD<Person> mrdd =  rdd
       .map(typeMapper)
@@ -43,20 +35,10 @@ public class NarrowOperations {
       ArrayList<Object> row = (ArrayList<Object>) o;
       return new Person((int)row.get(0), (String)row.get(1), 20);
     })
-      .filter(p -> {
-        if (!Objects.equals(p.getName(), "Bob")) {
-          return p;
-        }
-        else {
-          return null;
-        }
-      });
+      .filter(p -> !Objects.equals(p.getName(), "Bob"));
 
-    ResourceManager rm = new ResourceManager();
-    rm.init();
-
-    JobScheduler sch = new JobScheduler(rm);
-    sch.submitJob(mappedRdd);
+    JobScheduler sch = new JobScheduler();
+    sch.submitJob(mrdd);
   }
 }
 
