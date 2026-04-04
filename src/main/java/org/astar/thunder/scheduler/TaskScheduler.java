@@ -1,7 +1,9 @@
 package org.astar.thunder.scheduler;
 
-import org.astar.thunder.cluster.ExecutorInfo;
-import org.astar.thunder.cluster.ResourceManager;
+import akka.actor.typed.ActorRef;
+import org.astar.thunder.akka.SubmitTask;
+import org.astar.thunder.akka.ThunderMessage;
+import org.astar.thunder.akka.Tombstone;
 import org.astar.thunder.partition.Partition;
 import org.astar.thunder.rdd.RDD;
 
@@ -9,16 +11,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class TaskScheduler {
-  public void scheduleTasks(List<Task> tasks, ResourceManager resourceManager) {
-    ArrayList<ExecutorInfo> executors = resourceManager.getActiveExecutors();
+  public void scheduleTasks(List<Task> tasks, ActorRef<ThunderMessage> masterActor) {
+
     // assign the tasks to executors in Round Robin style
     for (int i = 0; i < tasks.size(); i++) {
-      System.out.printf("Assigned task %d to executor [%s]%n", i, executors.get(i % executors.size()).executorId);
-      executors.get(i % executors.size()).taskQueue.add(tasks.get(i));
+      masterActor.tell(new SubmitTask(tasks.get(i)));
     }
-    for (ExecutorInfo executor : executors) {
-      executor.taskQueue.add(Task.Tombstone());
-    }
+    // send tombstone message to shut down actor system
+    masterActor.tell(new Tombstone());
   }
 
   public ArrayList<Task> createTasks(List<Stage> stages) {

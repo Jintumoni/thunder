@@ -1,5 +1,9 @@
 package org.astar.thunder.scheduler;
 
+import akka.actor.typed.ActorSystem;
+import akka.actor.typed.ActorRef;
+import org.astar.thunder.akka.MasterActor;
+import org.astar.thunder.akka.ThunderMessage;
 import org.astar.thunder.cluster.ResourceManager;
 import org.astar.thunder.dependency.Dependency;
 import org.astar.thunder.dependency.ShuffleDependency;
@@ -10,12 +14,12 @@ import java.util.ArrayList;
 public class JobScheduler {
   private int jobId = 0;
   private int stageId = 0;
-  private final ResourceManager resourceManager;
+  private final ActorRef<ThunderMessage> masterActor;
   private final TaskScheduler taskScheduler;
 
-  public JobScheduler(ResourceManager resourceManager) {
-    this.resourceManager = resourceManager;
+  public JobScheduler() {
     this.taskScheduler = new TaskScheduler();
+    this.masterActor = ActorSystem.create(MasterActor.create(2), "thunder");
   }
 
   public int getJobId() {
@@ -41,7 +45,7 @@ public class JobScheduler {
     ArrayList<Stage> stages = createStages(rdd, true); // root is a barrier by convention
     // break down Stage into Task(s)
     ArrayList<Task> tasks = this.taskScheduler.createTasks(stages);
-    this.taskScheduler.scheduleTasks(tasks, this.resourceManager);
+    this.taskScheduler.scheduleTasks(tasks, this.masterActor);
   }
 
   /**
