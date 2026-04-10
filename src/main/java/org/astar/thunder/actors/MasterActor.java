@@ -6,6 +6,7 @@ import akka.actor.typed.javadsl.AbstractBehavior;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Receive;
+import org.astar.thunder.core.ResultHandler;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,7 +20,9 @@ public class MasterActor extends AbstractBehavior<ThunderMessage> {
     super(context);
     this.workers = new ArrayList<>();
     for (int i = 0; i < workers; i++) {
-      this.workers.add(context.spawn(WorkerActor.create(String.format("worker-%d", i)), "worker-" + i));
+      this.workers.add(context.spawn(
+        WorkerActor.create(context.getSelf(), String.format("worker-%d", i)), "worker-" + i)
+      );
     }
   }
 
@@ -27,7 +30,9 @@ public class MasterActor extends AbstractBehavior<ThunderMessage> {
     super(context);
     this.workers = new ArrayList<>();
     for (int i = 0; i < this.DEFAULT_PARALLELISM; i++) {
-      this.workers.add(context.spawn(WorkerActor.create(String.format("worker-%d", i)), "worker-" + i));
+      this.workers.add(context.spawn(
+        WorkerActor.create(context.getSelf(), String.format("worker-%d", i)), "worker-" + i)
+      );
     }
   }
 
@@ -44,7 +49,15 @@ public class MasterActor extends AbstractBehavior<ThunderMessage> {
     return newReceiveBuilder()
       .onMessage(SubmitTask.class, this::onSubmitTask)
       .onMessage(Tombstone.class, this::onTombstone)
+      .onMessage(TaskResult.class, this::onResult)
       .build();
+  }
+
+  private Behavior<ThunderMessage> onResult(TaskResult resultMsg) {
+    ResultHandler resultHandler = resultMsg.resultHandler;
+    System.out.println("result on master node: " + resultMsg.resultHandler.get());
+    resultHandler.apply(resultMsg);
+    return this;
   }
 
   private Behavior<ThunderMessage> onTombstone(Tombstone tombstoneMsg) {
@@ -54,7 +67,7 @@ public class MasterActor extends AbstractBehavior<ThunderMessage> {
   private Behavior<ThunderMessage> onSubmitTask(SubmitTask submitTaskMsg) {
     ActorRef<ThunderMessage> currentWorker = workers.get(this.nextWorker);
     this.nextWorker = (this.nextWorker + 1) % this.workers.size();
-    currentWorker.tell(new SubmitTask(submitTaskMsg.task));
+    currentWorker.tell(new SubmitTask(submitTaskMsg.task, getContext().getSelf()));
     return this;
   }
 }
