@@ -1,3 +1,4 @@
-package org.astar.thunder.akka;
+package org.astar.thunder.actors;
 
-public interface ThunderMessage {}
+public interface ThunderMessage {
+}

@@ -1,20 +1,11 @@
-package org.astar.thunder.akka;
+package org.astar.thunder.actors;
 
-import org.astar.thunder.core.ResultHandler;
+import org.astar.thunder.utils.ResultCollector;
 
-public class TaskResult implements ThunderMessage {
-  public Object result;
-  public ResultHandler resultHandler;
+public class TaskResult<T> implements ThunderMessage {
+  public ResultCollector<T> collector;
 
-  public TaskResult(Object result) {
-    this.result = result;
-  }
-
-  public TaskResult() {
-    this.result = null;
-  }
-
-  public void setResultHandler(ResultHandler resultHandler) {
-    this.resultHandler = resultHandler;
+  public TaskResult(ResultCollector<T> collector) {
+    this.collector = collector;
   }
 }

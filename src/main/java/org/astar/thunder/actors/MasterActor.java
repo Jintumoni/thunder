@@ -1,4 +1,4 @@
-package org.astar.thunder.akka;
+package org.astar.thunder.actors;
 
 import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
@@ -6,15 +6,19 @@ import akka.actor.typed.javadsl.AbstractBehavior;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Receive;
-import org.astar.thunder.core.ResultHandler;
+import org.astar.thunder.scheduler.Task;
+import org.astar.thunder.utils.ResultCollector;
+import org.astar.thunder.utils.ResultHandler;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class MasterActor extends AbstractBehavior<ThunderMessage> {
-  private final static int DEFAULT_PARALLELISM = 2;
+public class MasterActor<T> extends AbstractBehavior<ThunderMessage> {
   private final List<ActorRef<ThunderMessage>> workers;
   private int nextWorker = 0;
+  private ResultHandler<T> resultHandler;
+  private int tasksCount = 0;
+  private ActorRef<ThunderMessage> clientRef;
 
   private MasterActor(ActorContext<ThunderMessage> context, int workers) {
     super(context);
@@ -26,48 +30,39 @@ public class MasterActor extends AbstractBehavior<ThunderMessage> {
     }
   }
 
-  private MasterActor(ActorContext<ThunderMessage> context) {
-    super(context);
-    this.workers = new ArrayList<>();
-    for (int i = 0; i < this.DEFAULT_PARALLELISM; i++) {
-      this.workers.add(context.spawn(
-        WorkerActor.create(context.getSelf(), String.format("worker-%d", i)), "worker-" + i)
-      );
-    }
-  }
-
   public static Behavior<ThunderMessage> create(int workers) {
-    return Behaviors.setup(context -> new MasterActor(context, workers));
-  }
-
-  public static Behavior<ThunderMessage> create() {
-    return Behaviors.setup(context -> new MasterActor(context, DEFAULT_PARALLELISM));
+    return Behaviors.setup(context -> new MasterActor<>(context, workers));
   }
 
   @Override
   public Receive<ThunderMessage> createReceive() {
     return newReceiveBuilder()
-      .onMessage(SubmitTask.class, this::onSubmitTask)
-      .onMessage(Tombstone.class, this::onTombstone)
+      .onMessage(SubmitJob.class, this::onSubmitJob)
       .onMessage(TaskResult.class, this::onResult)
       .build();
   }
 
-  private Behavior<ThunderMessage> onResult(TaskResult resultMsg) {
-    ResultHandler resultHandler = resultMsg.resultHandler;
-    System.out.println("result on master node: " + resultMsg.resultHandler.get());
-    resultHandler.apply(resultMsg);
+  private Behavior<ThunderMessage> onResult(TaskResult<T> resultMsg) {
+    tasksCount--;
+    resultHandler.apply(resultMsg.collector.getResult());
+    if (tasksCount == 0) {
+      clientRef.tell(new TaskResult<>(new ResultCollector<>(resultHandler.get())));
+    }
     return this;
   }
 
-  private Behavior<ThunderMessage> onTombstone(Tombstone tombstoneMsg) {
-    return Behaviors.stopped();
-  }
+  private Behavior<ThunderMessage> onSubmitJob(SubmitJob submitJobMsg) {
+    tasksCount = submitJobMsg.tasks.size();
+    clientRef = submitJobMsg.replyToClient;
 
-  private Behavior<ThunderMessage> onSubmitTask(SubmitTask submitTaskMsg) {
-    ActorRef<ThunderMessage> currentWorker = workers.get(this.nextWorker);
-    this.nextWorker = (this.nextWorker + 1) % this.workers.size();
-    currentWorker.tell(new SubmitTask(submitTaskMsg.task, getContext().getSelf()));
+    for (Task<T> task : submitJobMsg.tasks) {
+      if (resultHandler == null) {
+        resultHandler = task.getResultHandler();
+      }
+      ActorRef<ThunderMessage> currentWorker = workers.get(this.nextWorker);
+      this.nextWorker = (this.nextWorker + 1) % this.workers.size();
+      currentWorker.tell(new SubmitTask(task, getContext().getSelf()));
+    }
     return this;
   }
 }

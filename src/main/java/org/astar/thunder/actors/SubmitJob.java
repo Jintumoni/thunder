@@ -3,18 +3,18 @@ package org.astar.thunder.actors;
 import akka.actor.typed.ActorRef;
 import org.astar.thunder.scheduler.Task;
 
-import java.util.ArrayList;
+import java.util.List;
 
-public class SubmitJob<T> implements ThunderMessage {
-  public final ArrayList<Task<T>> tasks;
-  public ActorRef<ThunderMessage> replyTo;
+public class SubmitJob implements ThunderMessage {
+  public final List<Task> tasks;
+  public ActorRef<ThunderMessage> replyToClient;
 
-  public SubmitJob(ArrayList<Task<T>> tasks) {
+  public SubmitJob(List<Task> tasks) {
     this.tasks = tasks;
   }
 
-  public SubmitJob(ArrayList<Task<T>> tasks, ActorRef<ThunderMessage> replyTo) {
+  public SubmitJob(List<Task> tasks, ActorRef<ThunderMessage> replyToClient) {
     this.tasks = tasks;
-    this.replyTo = replyTo;
+    this.replyToClient = replyToClient;
   }
 }
