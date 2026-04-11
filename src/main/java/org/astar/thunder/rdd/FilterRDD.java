@@ -14,6 +14,7 @@ public class FilterRDD<T> extends RDD<T> {
   private final Function<T, Boolean> f;
 
   public FilterRDD(RDD<T> parent, Function<T, Boolean> f) {
+    super(parent.context);
     this.parent = parent;
     this.f = f;
   }

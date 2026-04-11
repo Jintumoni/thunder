@@ -2,6 +2,7 @@ package org.astar.thunder.rdd;
 
 import io.plank.PlankReader;
 import io.plank.RecordBatch;
+import org.astar.thunder.core.ThunderContext;
 import org.astar.thunder.dependency.Dependency;
 import org.astar.thunder.partition.Partition;
 import org.astar.thunder.partition.PlankFilePartition;
@@ -13,14 +14,15 @@ public class PlankFileScanRDD extends RDD<Object> {
   private final PlankReader plankReader;
   private final String fileLoc;
 
-  public PlankFileScanRDD(PlankReader plankReader) {
+  public PlankFileScanRDD(ThunderContext context, PlankReader plankReader) {
+    super(context);
     this.plankReader = plankReader;
     this.fileLoc = this.plankReader.getFilePath();
   }
 
   @Override
   public Iterator<Object> compute(Partition p) throws Exception {
-    PlankFilePartition partition = (PlankFilePartition)p;
+    PlankFilePartition partition = (PlankFilePartition) p;
     RecordBatch batch = this.plankReader.readRowGroup(partition.getRowGroupId());
     final int ROW_COUNT = batch.columns[0].length;
     ArrayList<ArrayList<Object>> rows = new ArrayList<>(ROW_COUNT);
@@ -34,6 +36,7 @@ public class PlankFileScanRDD extends RDD<Object> {
 
     return new Iterator<Object>() {
       private int currentRow = 0;
+
       @Override
       public boolean hasNext() {
         return currentRow < ROW_COUNT;

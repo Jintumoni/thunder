@@ -1,5 +1,6 @@
 package org.astar.thunder.rdd;
 
+import org.astar.thunder.core.ThunderContext;
 import org.astar.thunder.dependency.Dependency;
 import org.astar.thunder.exceptions.PartitionProcessingException;
 import org.astar.thunder.partition.Partition;
@@ -20,7 +21,8 @@ public class TextFileScanRDD extends RDD<String> {
   private final long ALLOWED_MAX_BYTES_PER_PARTITION = 4 << 10; // 4kb
   private final byte END_OF_LINE_MARKER = '\n';
 
-  public TextFileScanRDD(int minPartitions, String fileLoc) throws IOException {
+  public TextFileScanRDD(ThunderContext context, int minPartitions, String fileLoc) throws IOException {
+    super(context);
     this.minPartitions = minPartitions;
     this.path = Path.of(fileLoc);
     this.fileSizeBytes = Files.size(this.path);

@@ -15,6 +15,7 @@ public class MapRDD<PARENT, SELF> extends RDD<SELF> {
   private final Function<PARENT, SELF> f;
 
   public MapRDD(RDD<PARENT> parent, Function<PARENT, SELF> f) {
+    super(parent.context);
     this.parent = parent;
     this.f = f;
   }
