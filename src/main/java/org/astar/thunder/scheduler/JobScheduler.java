@@ -1,25 +1,26 @@
 package org.astar.thunder.scheduler;
 
 import akka.actor.typed.ActorSystem;
-import akka.actor.typed.ActorRef;
-import org.astar.thunder.akka.MasterActor;
-import org.astar.thunder.akka.ThunderMessage;
-import org.astar.thunder.cluster.ResourceManager;
+import org.astar.thunder.actors.ThunderMessage;
+import org.astar.thunder.utils.ResultHandler;
 import org.astar.thunder.dependency.Dependency;
 import org.astar.thunder.dependency.ShuffleDependency;
 import org.astar.thunder.rdd.RDD;
 
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.Optional;
+import java.util.function.Function;
 
 public class JobScheduler {
   private int jobId = 0;
   private int stageId = 0;
-  private final ActorRef<ThunderMessage> masterActor;
+  private final ActorSystem<ThunderMessage> actorSystem;
   private final TaskScheduler taskScheduler;
 
-  public JobScheduler() {
+  public JobScheduler(ActorSystem<ThunderMessage> actorSystem) {
     this.taskScheduler = new TaskScheduler();
-    this.masterActor = ActorSystem.create(MasterActor.create(2), "thunder");
+    this.actorSystem = actorSystem;
   }
 
   public int getJobId() {
@@ -38,14 +39,24 @@ public class JobScheduler {
     this.stageId = stageId;
   }
 
-  public void submitJob(RDD<?> rdd) {
+  public <T> void submitJob(RDD<T> rdd) {
     this.jobId++;
     this.stageId = 0;
     // create Stage by breaking the dependency graph at Shuffle boundary
     ArrayList<Stage> stages = createStages(rdd, true); // root is a barrier by convention
     // break down Stage into Task(s)
     ArrayList<Task> tasks = this.taskScheduler.createTasks(stages);
-    this.taskScheduler.scheduleTasks(tasks, this.masterActor);
+    this.taskScheduler.scheduleTasks(tasks, this.actorSystem);
+  }
+
+  public <T> void submitJob(RDD<T> rdd, Function<Iterator<T>, Optional<T>> processFunc, ResultHandler<T> resultHandler) {
+    this.jobId++;
+    this.stageId = 0;
+    // create Stage by breaking the dependency graph at Shuffle boundary
+    ArrayList<Stage> stages = createStages(rdd, true); // root is a barrier by convention
+    // break down Stage into Task(s)
+    ArrayList<Task> tasks = this.taskScheduler.createTasks(stages, processFunc, resultHandler);
+    this.taskScheduler.scheduleTasks(tasks, this.actorSystem);
   }
 
   /**
