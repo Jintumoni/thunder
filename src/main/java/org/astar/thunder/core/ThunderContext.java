@@ -1,9 +1,9 @@
 package org.astar.thunder.core;
 
-import akka.actor.typed.ActorRef;
 import akka.actor.typed.ActorSystem;
 import io.plank.PlankReader;
 import org.astar.thunder.actors.MasterActor;
+import org.astar.thunder.actors.Shutdown;
 import org.astar.thunder.actors.ThunderMessage;
 import org.astar.thunder.rdd.PlankFileScanRDD;
 import org.astar.thunder.rdd.RDD;
@@ -12,25 +12,29 @@ import org.astar.thunder.scheduler.JobScheduler;
 import org.astar.thunder.utils.ResultHandler;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Function;
 
 public class ThunderContext {
   private static final String THUNDER_PARALLELISM_KEY = "thunder.parallelism";
   private static final String NUM_WORKERS = "num.executors";
   private static HashMap<String, String> properties = new HashMap<>();
+
   static {
     properties.put(THUNDER_PARALLELISM_KEY, "2");
     properties.put(NUM_WORKERS, "2");
   }
+
   private static final ThunderContext INSTANCE = new ThunderContext();
 
   public ThunderContext() {
     int numOfWorkers = Integer.parseInt(properties.get(NUM_WORKERS));
-    this.masterActor = ActorSystem.create(MasterActor.create(numOfWorkers), "thunder");
-    this.jobScheduler = new JobScheduler(this.masterActor);
+    this.actorSystem = ActorSystem.create(MasterActor.create(numOfWorkers), "thunder");
+    this.jobScheduler = new JobScheduler(this.actorSystem);
+  }
+
+  public void shutDownThunderContext() {
+    this.actorSystem.terminate();
   }
 
   public static ThunderContext getInstance() {
@@ -57,13 +61,11 @@ public class ThunderContext {
 
   }
 
-  public <T> void submitJob(RDD<T> rdd,
-                            Function<Iterator<T>, Optional<T>> partitionFunc,
-                            ResultHandler resultHandler) {
+  public <T> void submitJob(RDD<T> rdd, Function<Iterator<T>, Optional<T>> partitionFunc, ResultHandler resultHandler) {
     this.jobScheduler.submitJob(rdd, partitionFunc, resultHandler);
   }
 
   // Data Structures
   private final JobScheduler jobScheduler;
-  private final ActorRef<ThunderMessage> masterActor;
+  public final ActorSystem<ThunderMessage> actorSystem;
 }
